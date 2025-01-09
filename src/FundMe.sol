@@ -12,8 +12,8 @@ error FundMe__NotOwner();
 contract FundMe {
     using PriceConverter for uint256;
 
-    mapping(address => uint256) public addressToAmountFunded;
-    address[] public funders;
+    mapping(address => uint256) private addressToAmountFunded;
+    address[] private funders;
 
     // Could we make this constant?  /* hint: no! We should make it immutable! */
     address public /* immutable */ i_owner;
@@ -77,6 +77,21 @@ contract FundMe {
 
     receive() external payable {
         fund();
+    }
+    /**
+     * View /Pure functions do not modify the state of the contract in any way.
+     * They do not cost any gas.
+     * They are used to read the state of the contract.
+     * called gettter functions
+     */
+    function getAddressToAmountFunded(
+        address fundingAdress
+    ) external view returns (uint256)
+    {
+        return addressToAmountFunded[fundingAdress];
+    }
+    function getFunder(uint256 index)external view returns (address){
+        return funders[index];
     }
 }
 
