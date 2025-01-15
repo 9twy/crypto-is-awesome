@@ -12,11 +12,10 @@ error FundMe__NotOwner();
 contract FundMe {
     using PriceConverter for uint256;
 
-    mapping(address => uint256) private addressToAmountFunded;
+    mapping(address => uint256) public addressToAmountFunded;
     address[] private funders;
 
-    // Could we make this constant?  /* hint: no! We should make it immutable! */
-    address public /* immutable */ i_owner;
+    address private immutable i_owner;
     uint256 public constant MINIMUM_USD = 5 * 10 ** 18;
     AggregatorV3Interface private s_priceFeed;
 
@@ -26,7 +25,10 @@ contract FundMe {
     }
 
     function fund() public payable {
-        require(msg.value.getConversionRate(s_priceFeed) >= MINIMUM_USD, "You need to spend more ETH!");
+        require(
+            msg.value.getConversionRate(s_priceFeed) >= MINIMUM_USD,
+            "You need to spend more ETH!"
+        );
         // require(PriceConverter.getConversionRate(msg.value) >= MINIMUM_USD, "You need to spend more ETH!");
         addressToAmountFunded[msg.sender] += msg.value;
         funders.push(msg.sender);
@@ -42,8 +44,29 @@ contract FundMe {
         _;
     }
 
+    function chaperWithdraw() public onlyOwner {
+        uint256 fundersLength = funders.length;
+        for (
+            uint256 funderIndex = 0;
+            funderIndex < fundersLength;
+            funderIndex++
+        ) {
+            address funder = funders[funderIndex];
+            addressToAmountFunded[funder] = 0;
+        }
+        funders = new address[](0);
+        (bool callSuccess, ) = payable(msg.sender).call{
+            value: address(this).balance
+        }("");
+        require(callSuccess, "Call failed");
+    }
+
     function withdraw() public onlyOwner {
-        for (uint256 funderIndex = 0; funderIndex < funders.length; funderIndex++) {
+        for (
+            uint256 funderIndex = 0;
+            funderIndex < funders.length;
+            funderIndex++
+        ) {
             address funder = funders[funderIndex];
             addressToAmountFunded[funder] = 0;
         }
@@ -56,9 +79,12 @@ contract FundMe {
         // require(sendSuccess, "Send failed");
 
         // call
-        (bool callSuccess,) = payable(msg.sender).call{value: address(this).balance}("");
+        (bool callSuccess, ) = payable(msg.sender).call{
+            value: address(this).balance
+        }("");
         require(callSuccess, "Call failed");
     }
+
     // Explainer from: https://solidity-by-example.org/fallback/
     // Ether is sent to contract
     //      is msg.data empty?
@@ -78,6 +104,7 @@ contract FundMe {
     receive() external payable {
         fund();
     }
+
     /**
      * View /Pure functions do not modify the state of the contract in any way.
      * They do not cost any gas.
@@ -86,20 +113,15 @@ contract FundMe {
      */
     function getAddressToAmountFunded(
         address fundingAdress
-    ) external view returns (uint256)
-    {
+    ) external view returns (uint256) {
         return addressToAmountFunded[fundingAdress];
     }
-    function getFunder(uint256 index)external view returns (address){
+
+    function getFunder(uint256 index) external view returns (address) {
         return funders[index];
     }
-}
 
-// Concepts we didn't cover yet (will cover in later sections)
-// 1. Enum
-// 2. Events
-// 3. Try / Catch
-// 4. Function Selector
-// 5. abi.encode / decode
-// 6. Hash with keccak256
-// 7. Yul / Assembly
+    function getOwner() external view returns (address) {
+        return i_owner;
+    }
+}
